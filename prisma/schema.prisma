@@ -43,82 +43,99 @@ model User {
 }
 
 model Siswa {
-  id         Int          @id @default(autoincrement())
-  namaSiswa  String
-  alamat     String?
-  telp       String?
-  foto       String?
+  id        Int      @id @default(autoincrement())
+  namaSiswa String
+  alamat    String?
+  telp      String?
+  foto      String?
 
-  user       User         @relation(fields: [userId], references: [id])
-  userId     Int          @unique
-  
-  transaksi  Transaksi[]
-  createdAt  DateTime     @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int      @unique
+
+  transaksi Transaksi[]
+
+  createdAt DateTime @default(now())
 }
 
 model Stan {
-  id          Int          @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   namaStan    String
   namaPemilik String?
   telp        String?
   foto        String?
-  user        User         @relation
-  userId      Int          @unique
+
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int      @unique
+
   menu        Menu[]
   transaksi   Transaksi[]
-  createdAt   DateTime     @default(now())
+
+  createdAt DateTime @default(now())
 }
 
 model Menu {
-  id          Int          @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   namaMakanan String
   harga       Float
   jenis       MenuJenis
   foto        String?
   deskripsi   String?
-  stan        Stan         @relation(fields: [stanId], references: [id], onDelete: Cascade)
+
+  stan        Stan     @relation(fields: [stanId], references: [id], onDelete: Cascade)
   stanId      Int
+
   menuDiskon  MenuDiskon[]
   detailTrans DetailTransaksi[]
-  createdAt   DateTime     @default(now())
+
+  createdAt DateTime @default(now())
 }
 
 model Diskon {
-  id            Int          @id @default(autoincrement())
-  namaDiskon    String
-  persenDiskon  Float
-  tanggalAwal   DateTime
-  tanggalAkhir  DateTime
-  menuDiskon    MenuDiskon[]
-  createdAt     DateTime     @default(now())
+  id           Int      @id @default(autoincrement())
+  namaDiskon   String
+  persenDiskon Float
+  tanggalAwal  DateTime
+  tanggalAkhir DateTime
+
+  menuDiskon   MenuDiskon[]
+
+  createdAt DateTime @default(now())
 }
 
 model MenuDiskon {
   id       Int    @id @default(autoincrement())
+
   menu     Menu   @relation(fields: [menuId], references: [id], onDelete: Cascade)
   menuId   Int
+
   diskon   Diskon @relation(fields: [diskonId], references: [id], onDelete: Cascade)
   diskonId Int
 }
 
 model Transaksi {
-  id         Int               @id @default(autoincrement())
-  tanggal    DateTime          @default(now())
-  stan       Stan              @relation(fields: [stanId], references: [id], onDelete: Cascade)
-  stanId     Int
-  siswa      Siswa             @relation(fields: [siswaId], references: [id], onDelete: Cascade)
-  siswaId    Int
-  status     TransaksiStatus   @default(BELUM_DIKONFIRM)
-  detail     DetailTransaksi[]
-  createdAt  DateTime          @default(now())
+  id        Int              @id @default(autoincrement())
+  tanggal   DateTime         @default(now())
+  status    TransaksiStatus  @default(BELUM_DIKONFIRM)
+
+  stan      Stan             @relation(fields: [stanId], references: [id], onDelete: Cascade)
+  stanId    Int
+
+  siswa     Siswa            @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  siswaId   Int
+
+  detail    DetailTransaksi[]
+
+  createdAt DateTime @default(now())
 }
 
 model DetailTransaksi {
   id           Int       @id @default(autoincrement())
-  transaksi    Transaksi @relation(fields: [transaksiId], references: [id], onDelete: Cascade)
-  transaksiId  Int
-  menu         Menu      @relation(fields: [menuId], references: [id])
-  menuId       Int
   qty          Int
   hargaBeli    Float
+
+  transaksi    Transaksi @relation(fields: [transaksiId], references: [id], onDelete: Cascade)
+  transaksiId  Int
+
+  menu         Menu      @relation(fields: [menuId], references: [id])
+  menuId       Int
 }
