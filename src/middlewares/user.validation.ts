@@ -78,6 +78,102 @@ const updateSiswaValidation = (
   next();
 };
 
+// ------------------ STAN VALIDATION ------------------ //
+
+const createStanSchema = Joi.object({
+  username: Joi.string()
+    .min(4)
+    .max(30)
+    .required()
+    .messages({
+      "string.empty": "Username wajib diisi",
+      "string.min": "Username minimal 4 karakter",
+    }),
+
+  password: Joi.string()
+    .min(6)
+    .required()
+    .messages({
+      "string.empty": "Password wajib diisi",
+      "string.min": "Password minimal 6 karakter",
+    }),
+
+  namaStan: Joi.string()
+    .required()
+    .messages({
+      "string.empty": "Nama stan wajib diisi",
+    }),
+
+  namaPemilik: Joi.string().allow("", null),
+  telp: Joi.string().allow("", null),
+});
+
+const createStanValidation = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { error } = createStanSchema.validate(req.body, {
+    abortEarly: false,
+  });
+
+  if (error) {
+    res.status(400).json({
+      message: "Validasi gagal",
+      errors: error.details.map((err) => err.message),
+    });
+    return;
+  }
+
+  next();
+};
+
+const updateStanSchema = Joi.object({
+  username: Joi.string()
+    .min(4)
+    .max(30)
+    .optional()
+    .messages({
+      "string.min": "Username minimal 4 karakter",
+    }),
+
+  password: Joi.string()
+    .min(6)
+    .optional()
+    .messages({
+      "string.min": "Password minimal 6 karakter",
+    }),
+
+  namaStan: Joi.string().optional(),
+  namaPemilik: Joi.string().allow("", null),
+  telp: Joi.string().allow("", null),
+});
+
+const updateStanValidation = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { error } = updateStanSchema.validate(req.body, {
+    abortEarly: false,
+  });
+
+  if (error) {
+    //  HAPUS FILE JIKA VALIDASI GAGAL
+    if (req.file) {
+      const fs = require("fs");
+      fs.unlinkSync(req.file.path);
+    }
+
+    res.status(400).json({
+      message: "Validasi gagal",
+      errors: error.details.map((err) => err.message),
+    });
+    return;
+  }
+
+  next();
+};
 
 const loginSchema = Joi.object({
   username: Joi.string().min(4).required().messages({
@@ -110,4 +206,4 @@ const loginValidation = (
   next();
 };
 
-export { createSiswaValidation, updateSiswaValidation, loginValidation };
+export { createSiswaValidation, updateSiswaValidation, loginValidation, createStanValidation, updateStanValidation };
