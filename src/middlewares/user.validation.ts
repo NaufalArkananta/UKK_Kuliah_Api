@@ -159,15 +159,11 @@ const updateStanValidation = (
   });
 
   if (error) {
-    //  HAPUS FILE JIKA VALIDASI GAGAL
-    if (req.file) {
-      const fs = require("fs");
-      fs.unlinkSync(req.file.path);
-    }
+    // 🔥 HAPUS FILE JIKA VALIDASI GAGAL
+    deleteUploadedFile(req.file);
 
     res.status(400).json({
-      message: "Validasi gagal",
-      errors: error.details.map((err) => err.message),
+      message: error.details.map((d) => d.message),
     });
     return;
   }
