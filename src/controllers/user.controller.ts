@@ -415,4 +415,182 @@ const getProfileStan = async (
   }
 };
 
-export { createSiswa, authentication, getProfileSiswa, updateSiswa, createStan, updateStan, getProfileStan };
+const updateSiswaByStan = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = Number(req.params.id);
+
+    if (isNaN(userId)) {
+      res.status(400).json({ message: "User ID tidak valid" });
+      return;
+    }
+
+    // 🔎 Cari siswa berdasarkan userId
+    const findSiswa = await prisma.siswa.findUnique({
+      where: { userId },
+      include: { user: true },
+    });
+
+    if (!findSiswa) {
+      res.status(404).json({ message: "Siswa tidak ditemukan" });
+      return;
+    }
+
+    const { namaSiswa, alamat, telp, username, password } = req.body;
+
+    // 🔐 Validasi username (jika diubah)
+    if (username && username !== findSiswa.user.username) {
+      const exists = await prisma.user.findUnique({
+        where: { username },
+      });
+
+      if (exists) {
+        res.status(400).json({ message: "Username sudah digunakan" });
+        return;
+      }
+    }
+
+    // 🖼️ Hapus foto lama jika upload baru
+    if (req.file && findSiswa.foto) {
+      const oldPath = path.join(
+        process.cwd(),
+        "public",
+        "userImage",
+        findSiswa.foto
+      );
+
+      if (fs.existsSync(oldPath)) {
+        fs.unlinkSync(oldPath);
+      }
+    }
+
+    // 🔐 Hash password jika diisi
+    const hashedPassword = password
+      ? await bcrypt.hash(password, 10)
+      : undefined;
+
+    // 🔄 Update USER
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        username: username ?? findSiswa.user.username,
+        password: hashedPassword ?? findSiswa.user.password,
+      },
+    });
+
+    // 🔄 Update SISWA
+    const updatedSiswa = await prisma.siswa.update({
+      where: { userId },
+      data: {
+        namaSiswa: namaSiswa ?? findSiswa.namaSiswa,
+        alamat: alamat ?? findSiswa.alamat,
+        telp: telp ?? findSiswa.telp,
+        foto: req.file ? req.file.filename : findSiswa.foto,
+      },
+    });
+
+    res.status(200).json({
+      message: "Data siswa berhasil diperbarui",
+      data: {
+        user: {
+          id: updatedUser.id,
+          username: updatedUser.username,
+          role: updatedUser.role,
+        },
+        siswa: updatedSiswa,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const getAllSiswa = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const siswa = await prisma.siswa.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            role: true,
+            createdAt: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    res.status(200).json({
+      message: "Berhasil mengambil semua data siswa",
+      data: siswa,
+    });
+  } catch (error) {
+    res.status(500).json(error);
+  }
+};
+
+const deleteSiswa = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = Number(req.params.id);
+
+    if (isNaN(userId)) {
+      res.status(400).json({ message: "User ID tidak valid" });
+      return;
+    }
+
+    // 🔎 Cari siswa berdasarkan userId
+    const siswa = await prisma.siswa.findUnique({
+      where: { userId },
+    });
+
+    if (!siswa) {
+      res.status(404).json({ message: "Siswa tidak ditemukan" });
+      return;
+    }
+
+    // 🖼️ Hapus foto jika ada
+    if (siswa.foto) {
+      const filePath = path.join(
+        process.cwd(),
+        "public",
+        "userImage",
+        siswa.foto
+      );
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    // 🗑️ Hapus SISWA dulu (FK ke User)
+    await prisma.siswa.delete({
+      where: { userId },
+    });
+
+    // 🗑️ Hapus USER
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    res.status(200).json({
+      message: "Siswa dan user berhasil dihapus",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export { createSiswa, authentication, getProfileSiswa, updateSiswa, createStan, updateStan, getProfileStan, updateSiswaByStan, getAllSiswa, deleteSiswa };
