@@ -70,3 +70,77 @@ export const updateDiskonValidation = (
 
   next();
 };
+
+const createMenuDiskonSchema = Joi.object({
+  menuId: Joi.number()
+    .integer()
+    .positive()
+    .required()
+    .messages({
+      "number.base": "menuId harus berupa angka",
+      "number.positive": "menuId harus lebih dari 0",
+      "any.required": "menuId wajib diisi",
+    }),
+
+  diskonId: Joi.number()
+    .integer()
+    .positive()
+    .required()
+    .messages({
+      "number.base": "diskonId harus berupa angka",
+      "number.positive": "diskonId harus lebih dari 0",
+      "any.required": "diskonId wajib diisi",
+    }),
+});
+
+const updateMenuDiskonSchema = Joi.object({
+  menuId: Joi.number()
+    .integer()
+    .positive()
+    .optional(),
+
+  diskonId: Joi.number()
+    .integer()
+    .positive()
+    .optional(),
+}).min(1).messages({
+  "object.min": "Minimal salah satu field (menuId atau diskonId) harus diisi",
+});
+
+export const createMenuDiskonValidation = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  const { error } = createMenuDiskonSchema.validate(req.body, {
+    abortEarly: false,
+  });
+
+  if (error) {
+    res.status(400).json({
+      message: error.details.map((d) => d.message).join(", "),
+    });
+    return;
+  }
+
+  next();
+};
+
+export const updateMenuDiskonValidation = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  const { error } = updateMenuDiskonSchema.validate(req.body, {
+    abortEarly: false,
+  });
+
+  if (error) {
+    res.status(400).json({
+      message: error.details.map((d) => d.message).join(", "),
+    });
+    return;
+  }
+
+  next();
+};
