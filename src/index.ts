@@ -1,6 +1,7 @@
 import Express from 'express'
 import userRoute from './routes/user.route'
 import menuRoute from './routes/menu.route'
+import diskonRoute from './routes/diskon.route'
 
 const app = Express()
 
@@ -12,6 +13,7 @@ app.get('/', (req, res) => {
 
 app.use('/api', userRoute)
 app.use('/api', menuRoute)
+app.use('/api', diskonRoute)
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
