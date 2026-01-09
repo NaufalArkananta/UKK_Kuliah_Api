@@ -178,5 +178,126 @@ const deleteMenu = async (
   }
 };
  
+const getMenuDiskonAll = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const data = await prisma.menu.findMany({
+      where: {
+        menuDiskon: {
+          some: {}, // ⬅️ hanya menu yang punya diskon
+        },
+      },
+      include: {
+        menuDiskon: {
+          include: {
+            diskon: true,
+          },
+        },
+        stan: {
+          select: {
+            id: true,
+            namaStan: true,
+          },
+        },
+      },
+    });
 
-export { createMenu, getMenuStan, updateMenu, deleteMenu };
+    res.status(200).json({
+      message: "Berhasil mengambil menu yang memiliki diskon",
+      data,
+    });
+  } catch (error) {
+    res.status(500).json(error);
+  }
+};
+
+const getMenuMakanan = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const data = await prisma.menu.findMany({
+      where: {
+        jenis: "MAKANAN",
+      },
+      include: {
+        menuDiskon: {
+          include: { diskon: true },
+        },
+        stan: {
+          select: {
+            id: true,
+            namaStan: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json({
+      message: "Berhasil mengambil menu makanan",
+      data,
+    });
+  } catch (error) {
+    res.status(500).json(error);
+  }
+};
+
+const getMenuMinuman = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const data = await prisma.menu.findMany({
+      where: {
+        jenis: "MINUMAN",
+      },
+      include: {
+        menuDiskon: {
+          include: { diskon: true },
+        },
+        stan: {
+          select: {
+            id: true,
+            namaStan: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json({
+      message: "Berhasil mengambil menu minuman",
+      data,
+    });
+  } catch (error) {
+    res.status(500).json(error);
+  }
+};
+
+const getMenuAll = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const data = await prisma.menu.findMany({
+      include: {
+        stan: {
+          select: {
+            id: true,
+            namaStan: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json({
+      message: "Berhasil mengambil semua menu",
+      data,
+    });
+  } catch (error) {
+    res.status(500).json(error);
+  }
+};
+
+export { createMenu, getMenuStan, updateMenu, deleteMenu, getMenuDiskonAll, getMenuMakanan, getMenuMinuman, getMenuAll };
