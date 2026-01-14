@@ -18,7 +18,7 @@ export const createDiskon = async (
 
     // Ambil STAN berdasarkan USER ID dari JWT
     const stan = await prisma.stan.findUnique({
-      where: { userId }, // 🔥 INI KUNCI UTAMANYA
+      where: { userId },
     });
 
     if (!stan) {
