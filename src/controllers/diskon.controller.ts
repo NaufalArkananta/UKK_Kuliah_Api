@@ -256,31 +256,88 @@ export const updateDiskon = async (
 };
 
 
-export const createMenuDiskon = async (req: Request, res: Response): Promise<void> => {
+export const createMenuDiskon = async (
+  req: Request & { user?: { id: number } },
+  res: Response
+): Promise<void> => {
   try {
+    const userId = req.user?.id;
     const { menuId, diskonId } = req.body;
 
-    const menu = await prisma.menu.findUnique({ where: { id: Number(menuId) } });
-    const diskon = await prisma.diskon.findUnique({ where: { id: Number(diskonId) } });
-
-    if (!menu || !diskon) {
-      res.status(404).json({ message: "Menu atau Diskon tidak ditemukan" });
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
+    if (!menuId || !diskonId) {
+      res.status(400).json({
+        message: "menuId dan diskonId wajib diisi",
+      });
+      return;
+    }
+
+    // 🔎 Ambil stan dari user JWT
+    const stan = await prisma.stan.findUnique({
+      where: { userId },
+    });
+
+    if (!stan) {
+      res.status(403).json({
+        message: "Akses ditolak (bukan admin stan)",
+      });
+      return;
+    }
+
+    // 🔎 Ambil menu & pastikan milik stan ini
+    const menu = await prisma.menu.findFirst({
+      where: {
+        id: Number(menuId),
+        stanId: stan.id,
+      },
+    });
+
+    if (!menu) {
+      res.status(404).json({
+        message: "Menu tidak ditemukan atau bukan milik stan ini",
+      });
+      return;
+    }
+
+    //  Ambil diskon & pastikan milik stan ini
+    const diskon = await prisma.diskon.findFirst({
+      where: {
+        id: Number(diskonId),
+        stanId: stan.id,
+      },
+    });
+
+    if (!diskon) {
+      res.status(404).json({
+        message: "Diskon tidak ditemukan atau bukan milik stan ini",
+      });
+      return;
+    }
+
+    // Cegah duplikasi
     const exists = await prisma.menuDiskon.findFirst({
-      where: { menuId: Number(menuId), diskonId: Number(diskonId) },
+      where: {
+        menuId: menu.id,
+        diskonId: diskon.id,
+      },
     });
 
     if (exists) {
-      res.status(400).json({ message: "Diskon sudah diterapkan pada menu ini" });
+      res.status(400).json({
+        message: "Diskon sudah diterapkan pada menu ini",
+      });
       return;
     }
 
+    //  Create menu diskon
     const menuDiskon = await prisma.menuDiskon.create({
       data: {
-        menuId: Number(menuId),
-        diskonId: Number(diskonId),
+        menuId: menu.id,
+        diskonId: diskon.id,
       },
     });
 
@@ -289,21 +346,46 @@ export const createMenuDiskon = async (req: Request, res: Response): Promise<voi
       data: menuDiskon,
     });
   } catch (error) {
-    res.status(500).json(error);
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
-export const getMenuDiskon = async (req: Request, res: Response): Promise<void> => {
+export const getMenuDiskon = async (
+  req: Request & { user?: { id: number } },
+  res: Response
+): Promise<void> => {
   try {
+    const userId = req.user?.id;
     const { search, jenis } = req.query;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    //  Ambil stan dari user
+    const stan = await prisma.stan.findUnique({
+      where: { userId },
+    });
+
+    if (!stan) {
+      res.status(403).json({
+        message: "Akses ditolak (bukan admin stan)",
+      });
+      return;
+    }
 
     const menu = await prisma.menu.findMany({
       where: {
+        stanId: stan.id,
         namaMakanan: search
-          ? { contains: String(search) }
+          ? { contains: String(search)}
           : undefined,
         jenis: jenis ? (jenis as any) : undefined,
-        menuDiskon: { some: {} }, // hanya menu yang punya diskon
+        menuDiskon: {
+          some: {},
+        },
       },
       include: {
         menuDiskon: {
@@ -312,6 +394,9 @@ export const getMenuDiskon = async (req: Request, res: Response): Promise<void> 
           },
         },
       },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
     res.status(200).json({
@@ -319,19 +404,40 @@ export const getMenuDiskon = async (req: Request, res: Response): Promise<void> 
       data: menu,
     });
   } catch (error) {
-    res.status(500).json(error);
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
 export const getMenuDiskonByMenuId = async (
-  req: Request,
+  req: Request & { user?: { id: number } },
   res: Response
 ): Promise<void> => {
   try {
+    const userId = req.user?.id;
     const menuId = Number(req.params.menuId);
 
-    const menu = await prisma.menu.findUnique({
-      where: { id: menuId },
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    // ambil stan dari user
+    const stan = await prisma.stan.findUnique({
+      where: { userId },
+    });
+
+    if (!stan) {
+      res.status(403).json({ message: "Akses ditolak (bukan admin stan)" });
+      return;
+    }
+
+    // ambil menu + validasi kepemilikan stan
+    const menu = await prisma.menu.findFirst({
+      where: {
+        id: menuId,
+        stanId: stan.id,
+      },
       include: {
         menuDiskon: {
           include: {
@@ -351,51 +457,103 @@ export const getMenuDiskonByMenuId = async (
       data: menu,
     });
   } catch (error) {
-    res.status(500).json(error);
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
+
 export const updateMenuDiskon = async (
-  req: Request,
+  req: Request & { user?: { id: number } },
   res: Response
 ): Promise<void> => {
   try {
+    const userId = req.user?.id;
     const id = Number(req.params.id);
     const { menuId, diskonId } = req.body;
 
-    // cek menuDiskon
-    const find = await prisma.menuDiskon.findUnique({ where: { id } });
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    // Ambil stan dari user
+    const stan = await prisma.stan.findUnique({
+      where: { userId },
+    });
+
+    if (!stan) {
+      res.status(403).json({ message: "Akses ditolak (bukan admin stan)" });
+      return;
+    }
+
+    // Cari menuDiskon + relasi
+    const find = await prisma.menuDiskon.findUnique({
+      where: { id },
+      include: {
+        menu: true,
+        diskon: true,
+      },
+    });
+
     if (!find) {
       res.status(404).json({ message: "MenuDiskon tidak ditemukan" });
       return;
     }
 
-    // validasi menu
+    // pastikan menuDiskon milik stan ini
+    if (
+      find.menu.stanId !== stan.id ||
+      find.diskon.stanId !== stan.id
+    ) {
+      res.status(403).json({
+        message: "Tidak berhak mengubah menu diskon stan lain",
+      });
+      return;
+    }
+
+    let finalMenuId = find.menuId;
+    let finalDiskonId = find.diskonId;
+
+    // Validasi menu baru
     if (menuId) {
-      const menu = await prisma.menu.findUnique({
-        where: { id: Number(menuId) },
+      const menu = await prisma.menu.findFirst({
+        where: {
+          id: Number(menuId),
+          stanId: stan.id,
+        },
       });
+
       if (!menu) {
-        res.status(404).json({ message: "Menu tidak ditemukan" });
+        res.status(404).json({
+          message: "Menu tidak ditemukan atau bukan milik stan ini",
+        });
         return;
       }
+
+      finalMenuId = Number(menuId);
     }
 
-    // validasi diskon
+    // Validasi diskon baru
     if (diskonId) {
-      const diskon = await prisma.diskon.findUnique({
-        where: { id: Number(diskonId) },
+      const diskon = await prisma.diskon.findFirst({
+        where: {
+          id: Number(diskonId),
+          stanId: stan.id,
+        },
       });
+
       if (!diskon) {
-        res.status(404).json({ message: "Diskon tidak ditemukan" });
+        res.status(404).json({
+          message: "Diskon tidak ditemukan atau bukan milik stan ini",
+        });
         return;
       }
+
+      finalDiskonId = Number(diskonId);
     }
 
-    const finalMenuId = menuId ? Number(menuId) : find.menuId;
-    const finalDiskonId = diskonId ? Number(diskonId) : find.diskonId;
-
-    // cegah duplikasi
+    // Cegah duplikasi
     const exists = await prisma.menuDiskon.findFirst({
       where: {
         menuId: finalMenuId,
@@ -411,7 +569,7 @@ export const updateMenuDiskon = async (
       return;
     }
 
-    // update
+    // Update
     const updated = await prisma.menuDiskon.update({
       where: { id },
       data: {
@@ -425,7 +583,7 @@ export const updateMenuDiskon = async (
       data: updated,
     });
   } catch (error) {
-    res.status(500).json(error);
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
-
