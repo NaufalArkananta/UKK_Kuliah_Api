@@ -69,6 +69,7 @@ model Stan {
 
   menu        Menu[]
   transaksi   Transaksi[]
+  diskon      Diskon[]
 
   createdAt DateTime @default(now())
 }
@@ -97,9 +98,12 @@ model Diskon {
   tanggalAwal  DateTime
   tanggalAkhir DateTime
 
+  stan         Stan     @relation(fields: [stanId], references: [id], onDelete: Cascade)
+  stanId       Int
+
   menuDiskon   MenuDiskon[]
 
-  createdAt DateTime @default(now())
+  createdAt    DateTime @default(now())
 }
 
 model MenuDiskon {

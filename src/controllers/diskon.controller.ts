@@ -3,21 +3,47 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export const createDiskon = async (req: Request, res: Response): Promise<void> => {
+export const createDiskon = async (
+  req: Request & { user?: { id: number } },
+  res: Response
+): Promise<void> => {
   try {
+    const userId = req.user?.id;
     const { namaDiskon, persenDiskon, tanggalAwal, tanggalAkhir } = req.body;
 
-    if (new Date(tanggalAwal) >= new Date(tanggalAkhir)) {
-      res.status(400).json({ message: "Tanggal akhir harus setelah tanggal awal" });
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
+    // Ambil STAN berdasarkan USER ID dari JWT
+    const stan = await prisma.stan.findUnique({
+      where: { userId }, // 🔥 INI KUNCI UTAMANYA
+    });
+
+    if (!stan) {
+      res.status(403).json({
+        message: "Akses ditolak (bukan admin stan)",
+      });
+      return;
+    }
+
+    // Validasi tanggal
+    if (new Date(tanggalAwal) >= new Date(tanggalAkhir)) {
+      res.status(400).json({
+        message: "Tanggal akhir harus setelah tanggal awal",
+      });
+      return;
+    }
+
+    // CREATE DISKON → stanId AMAN
     const diskon = await prisma.diskon.create({
       data: {
         namaDiskon,
-        persenDiskon: Number(persenDiskon),
+        persenDiskon: persenDiskon,
         tanggalAwal: new Date(tanggalAwal),
         tanggalAkhir: new Date(tanggalAkhir),
+        stanId: stan.id,
       },
     });
 
@@ -26,42 +52,111 @@ export const createDiskon = async (req: Request, res: Response): Promise<void> =
       data: diskon,
     });
   } catch (error) {
-    res.status(500).json(error);
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
-export const getAllDiskon = async (_req: Request, res: Response): Promise<void> => {
+export const getAllDiskon = async (
+  req: Request & { user?: { id: number } },
+  res: Response
+): Promise<void> => {
   try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    // Ambil stan berdasarkan userId dari JWT
+    const stan = await prisma.stan.findUnique({
+      where: { userId },
+    });
+
+    if (!stan) {
+      res.status(403).json({
+        message: "Akses ditolak (bukan admin stan)",
+      });
+      return;
+    }
+
+    // Ambil semua diskon milik stan tersebut
     const diskon = await prisma.diskon.findMany({
-      orderBy: { createdAt: "desc" },
+      where: {
+        stanId: stan.id,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
     res.status(200).json({
-      message: "Berhasil mengambil semua diskon",
+      message: "Berhasil mengambil semua diskon stan",
       data: diskon,
     });
   } catch (error) {
-    res.status(500).json(error);
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
-export const getDiskonById = async (req: Request, res: Response): Promise<void> => {
+export const getDiskonById = async (
+  req: Request & { user?: { id: number } },
+  res: Response
+): Promise<void> => {
   try {
-    const id = Number(req.params.id);
+    const userId = req.user?.id;
+    const diskonId = Number(req.params.id);
 
-    const diskon = await prisma.diskon.findUnique({
-      where: { id },
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    if (isNaN(diskonId)) {
+      res.status(400).json({ message: "ID diskon tidak valid" });
+      return;
+    }
+
+    // Ambil stan dari user JWT
+    const stan = await prisma.stan.findUnique({
+      where: { userId },
+    });
+
+    if (!stan) {
+      res.status(403).json({
+        message: "Akses ditolak (bukan admin stan)",
+      });
+      return;
+    }
+
+    // Cari diskon berdasarkan id + stanId
+    const diskon = await prisma.diskon.findFirst({
+      where: {
+        id: diskonId,
+        stanId: stan.id,
+      },
       include: {
         menuDiskon: {
           include: {
-            menu: true,
+            menu: {
+              select: {
+                id: true,
+                namaMakanan: true,
+                harga: true,
+                jenis: true,
+              },
+            },
           },
         },
       },
     });
 
     if (!diskon) {
-      res.status(404).json({ message: "Diskon tidak ditemukan" });
+      res.status(404).json({
+        message: "Diskon tidak ditemukan atau bukan milik stan ini",
+      });
       return;
     }
 
@@ -70,35 +165,83 @@ export const getDiskonById = async (req: Request, res: Response): Promise<void> 
       data: diskon,
     });
   } catch (error) {
-    res.status(500).json(error);
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
-export const updateDiskon = async (req: Request, res: Response): Promise<void> => {
+export const updateDiskon = async (
+  req: Request & { user?: { id: number } },
+  res: Response
+): Promise<void> => {
   try {
-    const id = Number(req.params.id);
-    const { namaDiskon, persenDiskon, tanggalAwal, tanggalAkhir } = req.body;
+    const userId = req.user?.id;
+    const diskonId = Number(req.params.id);
 
-    const findDiskon = await prisma.diskon.findUnique({ where: { id } });
-    if (!findDiskon) {
-      res.status(404).json({ message: "Diskon tidak ditemukan" });
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
+    if (isNaN(diskonId)) {
+      res.status(400).json({ message: "ID diskon tidak valid" });
+      return;
+    }
+
+    const { namaDiskon, persenDiskon, tanggalAwal, tanggalAkhir } = req.body;
+
+    //  Ambil stan dari user JWT
+    const stan = await prisma.stan.findUnique({
+      where: { userId },
+    });
+
+    if (!stan) {
+      res.status(403).json({
+        message: "Akses ditolak (bukan admin stan)",
+      });
+      return;
+    }
+
+    // Pastikan diskon milik stan ini
+    const findDiskon = await prisma.diskon.findFirst({
+      where: {
+        id: diskonId,
+        stanId: stan.id,
+      },
+    });
+
+    if (!findDiskon) {
+      res.status(404).json({
+        message: "Diskon tidak ditemukan atau bukan milik stan ini",
+      });
+      return;
+    }
+
+    // Validasi tanggal (jika dua-duanya dikirim)
     if (tanggalAwal && tanggalAkhir) {
       if (new Date(tanggalAwal) >= new Date(tanggalAkhir)) {
-        res.status(400).json({ message: "Tanggal akhir harus setelah tanggal awal" });
+        res.status(400).json({
+          message: "Tanggal akhir harus setelah tanggal awal",
+        });
         return;
       }
     }
 
+    // Update diskon
     const updatedDiskon = await prisma.diskon.update({
-      where: { id },
+      where: { id: findDiskon.id },
       data: {
         namaDiskon: namaDiskon ?? findDiskon.namaDiskon,
-        persenDiskon: persenDiskon ?? findDiskon.persenDiskon,
-        tanggalAwal: tanggalAwal ? new Date(tanggalAwal) : findDiskon.tanggalAwal,
-        tanggalAkhir: tanggalAkhir ? new Date(tanggalAkhir) : findDiskon.tanggalAkhir,
+        persenDiskon:
+          persenDiskon !== undefined
+            ? Number(persenDiskon)
+            : findDiskon.persenDiskon,
+        tanggalAwal: tanggalAwal
+          ? new Date(tanggalAwal)
+          : findDiskon.tanggalAwal,
+        tanggalAkhir: tanggalAkhir
+          ? new Date(tanggalAkhir)
+          : findDiskon.tanggalAkhir,
       },
     });
 
@@ -107,9 +250,11 @@ export const updateDiskon = async (req: Request, res: Response): Promise<void> =
       data: updatedDiskon,
     });
   } catch (error) {
-    res.status(500).json(error);
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 export const createMenuDiskon = async (req: Request, res: Response): Promise<void> => {
   try {
