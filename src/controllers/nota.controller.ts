@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import { notaHtml } from "../templates/nota.html";
 import { htmlToPdf } from "../utils/pdf.util";
 import { PrismaClient } from "@prisma/client";
-import path from "path";
 
 const prisma = new PrismaClient();
 

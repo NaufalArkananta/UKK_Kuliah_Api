@@ -186,7 +186,7 @@ const getMenuDiskonAll = async (
     const data = await prisma.menu.findMany({
       where: {
         menuDiskon: {
-          some: {}, // ⬅️ hanya menu yang punya diskon
+          some: {}, // hanya menu yang punya diskon
         },
       },
       include: {
@@ -287,6 +287,9 @@ const getMenuAll = async (
             id: true,
             namaStan: true,
           },
+        },
+        menuDiskon: {
+          include: { diskon: true },
         },
       },
     });

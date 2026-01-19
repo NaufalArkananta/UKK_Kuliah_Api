@@ -7,38 +7,32 @@ export const notaHtml = (data: {
   items: {
     namaMenu: string;
     harga: number;
-    diskonPersen?: number;
     qty: number;
+    diskonPersen?: number;
   }[];
 }) => {
-  const formatRp = (n: number) =>
-    "Rp" + n.toLocaleString("id-ID");
+  const formatRp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 
-  const rows = data.items
-    .map((item) => {
-      const diskon = item.diskonPersen ?? 0;
-      const hargaDiskon =
-        item.harga - item.harga * (diskon / 100);
-      const subtotal = hargaDiskon * item.qty;
+const rows = data.items
+  .map((item) => {
+    const subtotal = item.harga * item.qty;
 
-      return `
+    return `
       <tr>
         <td>${item.namaMenu}</td>
         <td>${formatRp(item.harga)}</td>
-        <td>${diskon ? diskon + "%" : "-"}</td>
+        <td>${item.diskonPersen ? item.diskonPersen + "%" : "-"}</td>
         <td>${item.qty}</td>
         <td>${formatRp(subtotal)}</td>
       </tr>
     `;
-    })
-    .join("");
+  })
+  .join("");
 
-  const total = data.items.reduce((sum, item) => {
-    const diskon = item.diskonPersen ?? 0;
-    const hargaDiskon =
-      item.harga - item.harga * (diskon / 100);
-    return sum + hargaDiskon * item.qty;
-  }, 0);
+const total = data.items.reduce(
+  (sum, item) => sum + item.harga * item.qty,
+  0
+);
 
   return `
 <!DOCTYPE html>

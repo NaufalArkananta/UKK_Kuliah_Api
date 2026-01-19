@@ -9,19 +9,21 @@ export const createPesan = async (
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
-    const { pesanan } = req.body;
+    const { id_stan, pesan } = req.body;
 
     if (!userId) {
       res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
-    if (!Array.isArray(pesanan) || pesanan.length === 0) {
-      res.status(400).json({ message: "Pesanan tidak valid" });
+    // HANYA 1 STAN
+    if (!id_stan || !Array.isArray(pesan) || pesan.length === 0) {
+      res.status(400).json({
+        message: "Format pesanan tidak valid (hanya 1 stan)",
+      });
       return;
     }
 
-    // ambil siswa
     const siswa = await prisma.siswa.findUnique({
       where: { userId },
     });
@@ -31,80 +33,75 @@ export const createPesan = async (
       return;
     }
 
-    const hasilTransaksi = [];
+    const detailData = [];
 
-    // LOOP TIAP STAN
-    for (const order of pesanan) {
-      const { id_stan, pesan } = order;
-
-      if (!id_stan || !Array.isArray(pesan) || pesan.length === 0) {
-        res.status(400).json({
-          message: "Format pesanan per stan tidak valid",
-        });
-        return;
-      }
-
-      const detailData = [];
-
-      // LOOP MENU DALAM STAN
-      for (const item of pesan) {
-        const menu = await prisma.menu.findFirst({
-          where: {
-            id: Number(item.id_menu),
-            stanId: Number(id_stan),
-          },
-        });
-
-        if (!menu) {
-          res.status(404).json({
-            message: `Menu ${item.id_menu} tidak ditemukan di stan ${id_stan}`,
-          });
-          return;
-        }
-
-        detailData.push({
-          menuId: menu.id,
-          qty: Number(item.qty),
-          hargaBeli: menu.harga,
-        });
-      }
-
-      // CREATE TRANSAKSI PER STAN
-      const transaksi = await prisma.transaksi.create({
-        data: {
+    for (const item of pesan) {
+      const menu = await prisma.menu.findFirst({
+        where: {
+          id: Number(item.id_menu),
           stanId: Number(id_stan),
-          siswaId: siswa.id,
-          detail: {
-            create: detailData,
-          },
         },
         include: {
-          detail: {
-            include: {
-              menu: {
-                select: {
-                  id: true,
-                  namaMakanan: true,
-                  harga: true,
-                },
-              },
-            },
-          },
-          stan: {
-            select: {
-              id: true,
-              namaStan: true,
-            },
+          menuDiskon: {
+            include: { diskon: true },
           },
         },
       });
 
-      hasilTransaksi.push(transaksi);
+      if (!menu) {
+        res.status(404).json({
+          message: `Menu ${item.id_menu} tidak ditemukan di stan ${id_stan}`,
+        });
+        return;
+      }
+
+      // HITUNG DISKON
+      const diskon = menu.menuDiskon[0]?.diskon;
+      const persenDiskon = diskon?.persenDiskon ?? 0;
+
+      const hargaAwal = menu.harga;
+      const hargaSetelahDiskon =
+        hargaAwal - hargaAwal * (persenDiskon / 100);
+
+      detailData.push({
+        menuId: menu.id,
+        qty: Number(item.qty),
+        hargaBeli: Math.round(hargaSetelahDiskon), // harga FINAL
+      });
     }
+
+    // CREATE TRANSAKSI
+    const transaksi = await prisma.transaksi.create({
+      data: {
+        stanId: Number(id_stan),
+        siswaId: siswa.id,
+        detail: {
+          create: detailData,
+        },
+      },
+      include: {
+        detail: {
+          include: {
+            menu: {
+              select: {
+                id: true,
+                namaMakanan: true,
+              },
+            },
+          },
+        },
+        stan: {
+          select: {
+            id: true,
+            namaStan: true,
+          },
+        },
+      },
+    });
 
     res.status(201).json({
       message: "Pesanan berhasil dibuat",
-      data: hasilTransaksi,
+      data: transaksi,
     });
   } catch (error) {
     console.error(error);

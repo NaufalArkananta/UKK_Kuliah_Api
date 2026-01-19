@@ -7,15 +7,10 @@ const pesanItemSchema = Joi.object({
   qty: Joi.number().integer().min(1).required(),
 });
 
-// pesanan per stan
-const pesananStanSchema = Joi.object({
+// root schema (HANYA 1 STAN)
+const createPesanSchema = Joi.object({
   id_stan: Joi.number().integer().positive().required(),
   pesan: Joi.array().items(pesanItemSchema).min(1).required(),
-});
-
-// root schema
-const createPesanSchema = Joi.object({
-  pesanan: Joi.array().items(pesananStanSchema).min(1).required(),
 });
 
 export const createPesanValidation = (
@@ -29,7 +24,8 @@ export const createPesanValidation = (
 
   if (error) {
     res.status(400).json({
-      message: error.details.map((e) => e.message),
+      message: "Validasi gagal",
+      errors: error.details.map((e) => e.message),
     });
     return;
   }
