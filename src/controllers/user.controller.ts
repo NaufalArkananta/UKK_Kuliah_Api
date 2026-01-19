@@ -23,6 +23,7 @@ const createSiswa = async (req: Request, res: Response) => {
 
         if (findUsername) {
             res.status(400).json({ message: "Username sudah digunakan" })
+            return
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -90,7 +91,7 @@ const updateSiswa = async (    req: Request & { user?: { id: number } },
 
     const { namaSiswa, alamat, telp, username, password } = req.body;
 
-    // 🔐 VALIDASI USERNAME
+    // VALIDASI USERNAME
     if (username && username !== findSiswa.user.username) {
       const exists = await prisma.user.findUnique({ where: { username } });
       if (exists) {
@@ -99,7 +100,7 @@ const updateSiswa = async (    req: Request & { user?: { id: number } },
       }
     }
 
-    // 🖼️ HAPUS FOTO LAMA JIKA ADA
+    // HAPUS FOTO LAMA JIKA ADA
     if (req.file && findSiswa.foto) {
       const oldPath = path.join(
         process.cwd(),
@@ -110,12 +111,12 @@ const updateSiswa = async (    req: Request & { user?: { id: number } },
       if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
     }
 
-    // 🔐 HASH PASSWORD
+    // HASH PASSWORD
     const hashedPassword = password
       ? await bcrypt.hash(password, 10)
       : undefined;
 
-    // 🔄 UPDATE USER
+    // UPDATE USER
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
@@ -124,7 +125,7 @@ const updateSiswa = async (    req: Request & { user?: { id: number } },
       },
     });
 
-    // 🔄 UPDATE SISWA
+    // UPDATE SISWA
     const updatedSiswa = await prisma.siswa.update({
       where: { userId },
       data: {
@@ -150,7 +151,6 @@ const updateSiswa = async (    req: Request & { user?: { id: number } },
     res.status(500).json(error);
   }
 };
-
 
 // Get Profile Siswa
 
@@ -317,7 +317,7 @@ const updateStan = async (
 
     const { namaStan, namaPemilik, telp, username, password } = req.body;
 
-    // 🔐 VALIDASI USERNAME
+    // VALIDASI USERNAME
     if (username && username !== findStan.user.username) {
       const exists = await prisma.user.findUnique({ where: { username } });
       if (exists) {
@@ -326,7 +326,7 @@ const updateStan = async (
       }
     }
 
-    // 🖼️ HAPUS FOTO LAMA
+    // HAPUS FOTO LAMA
     if (req.file && findStan.foto) {
       const oldPath = path.join(
         process.cwd(),
@@ -337,12 +337,12 @@ const updateStan = async (
       if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
     }
 
-    // 🔐 HASH PASSWORD
+    // HASH PASSWORD
     const hashedPassword = password
       ? await bcrypt.hash(password, 10)
       : undefined;
 
-    // 🔄 UPDATE USER
+    // UPDATE USER
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
@@ -351,7 +351,7 @@ const updateStan = async (
       },
     });
 
-    // 🔄 UPDATE STAN
+    // UPDATE STAN
     const updatedStan = await prisma.stan.update({
       where: { userId },
       data: {
@@ -427,7 +427,7 @@ const updateSiswaByStan = async (
       return;
     }
 
-    // 🔎 Cari siswa berdasarkan userId
+    // Cari siswa berdasarkan userId
     const findSiswa = await prisma.siswa.findUnique({
       where: { userId },
       include: { user: true },
@@ -440,7 +440,7 @@ const updateSiswaByStan = async (
 
     const { namaSiswa, alamat, telp, username, password } = req.body;
 
-    // 🔐 Validasi username (jika diubah)
+    // Validasi username (jika diubah)
     if (username && username !== findSiswa.user.username) {
       const exists = await prisma.user.findUnique({
         where: { username },
@@ -452,7 +452,7 @@ const updateSiswaByStan = async (
       }
     }
 
-    // 🖼️ Hapus foto lama jika upload baru
+    // Hapus foto lama jika upload baru
     if (req.file && findSiswa.foto) {
       const oldPath = path.join(
         process.cwd(),
@@ -466,12 +466,12 @@ const updateSiswaByStan = async (
       }
     }
 
-    // 🔐 Hash password jika diisi
+    // Hash password jika diisi
     const hashedPassword = password
       ? await bcrypt.hash(password, 10)
       : undefined;
 
-    // 🔄 Update USER
+    // Update USER
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
@@ -480,7 +480,7 @@ const updateSiswaByStan = async (
       },
     });
 
-    // 🔄 Update SISWA
+    // Update SISWA
     const updatedSiswa = await prisma.siswa.update({
       where: { userId },
       data: {
@@ -550,7 +550,7 @@ const deleteSiswa = async (
       return;
     }
 
-    // 🔎 Cari siswa berdasarkan userId
+    // Cari siswa berdasarkan userId
     const siswa = await prisma.siswa.findUnique({
       where: { userId },
     });
@@ -560,7 +560,7 @@ const deleteSiswa = async (
       return;
     }
 
-    // 🖼️ Hapus foto jika ada
+    // Hapus foto jika ada
     if (siswa.foto) {
       const filePath = path.join(
         process.cwd(),
@@ -574,12 +574,12 @@ const deleteSiswa = async (
       }
     }
 
-    // 🗑️ Hapus SISWA dulu (FK ke User)
+    // Hapus SISWA dulu (FK ke User)
     await prisma.siswa.delete({
       where: { userId },
     });
 
-    // 🗑️ Hapus USER
+    // Hapus USER
     await prisma.user.delete({
       where: { id: userId },
     });

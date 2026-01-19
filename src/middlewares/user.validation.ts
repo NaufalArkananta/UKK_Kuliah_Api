@@ -66,7 +66,7 @@ const updateSiswaValidation = (
   });
 
   if (error) {
-    // 🔥 HAPUS FILE JIKA VALIDASI GAGAL
+    // HAPUS FILE JIKA VALIDASI GAGAL
     deleteUploadedFile(req.file);
 
     res.status(400).json({
@@ -159,7 +159,7 @@ const updateStanValidation = (
   });
 
   if (error) {
-    // 🔥 HAPUS FILE JIKA VALIDASI GAGAL
+    // HAPUS FILE JIKA VALIDASI GAGAL
     deleteUploadedFile(req.file);
 
     res.status(400).json({
