@@ -179,15 +179,29 @@ export const getOrderHistoryByMonthSiswa = async (
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
-    const bulan = Number(req.params.bulan); // 1 - 12
+    const bulanTahun = req.params.bulanTahun; // format: MM-YYYY
 
     if (!userId) {
       res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
-    if (isNaN(bulan) || bulan < 1 || bulan > 12) {
-      res.status(400).json({ message: "Bulan tidak valid (1-12)" });
+    // Validasi format MM-YYYY
+    if (!/^\d{2}-\d{4}$/.test(bulanTahun)) {
+      res.status(400).json({
+        message: "Format tanggal tidak valid (MM-YYYY)",
+      });
+      return;
+    }
+
+    const [bulanStr, tahunStr] = bulanTahun.split("-");
+    const bulan = Number(bulanStr); // 1 - 12
+    const tahun = Number(tahunStr);
+
+    if (bulan < 1 || bulan > 12 || isNaN(tahun)) {
+      res.status(400).json({
+        message: "Bulan atau tahun tidak valid",
+      });
       return;
     }
 
@@ -201,9 +215,9 @@ export const getOrderHistoryByMonthSiswa = async (
       return;
     }
 
-    const year = new Date().getFullYear();
-    const startDate = new Date(year, bulan - 1, 1);
-    const endDate = new Date(year, bulan, 0, 23, 59, 59);
+    // Range tanggal
+    const startDate = new Date(tahun, bulan - 1, 1);
+    const endDate = new Date(tahun, bulan, 0, 23, 59, 59);
 
     const orders = await prisma.transaksi.findMany({
       where: {
@@ -235,7 +249,7 @@ export const getOrderHistoryByMonthSiswa = async (
     });
 
     res.status(200).json({
-      message: `Histori pesanan bulan ${bulan}`,
+      message: `Histori pesanan bulan ${bulan}-${tahun}`,
       data: orders,
     });
   } catch (error) {
@@ -416,15 +430,29 @@ export const getOrderHistoryByMonth = async (
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
-    const bulan = Number(req.params.bulan); // 1 - 12
+    const bulanTahun = req.params.bulanTahun; // format: MM-YYYY
 
     if (!userId) {
       res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
-    if (bulan < 1 || bulan > 12) {
-      res.status(400).json({ message: "Bulan tidak valid (1-12)" });
+    // Validasi format MM-YYYY
+    if (!/^\d{2}-\d{4}$/.test(bulanTahun)) {
+      res.status(400).json({
+        message: "Format tanggal tidak valid (MM-YYYY)",
+      });
+      return;
+    }
+
+    const [bulanStr, tahunStr] = bulanTahun.split("-");
+    const bulan = Number(bulanStr);
+    const tahun = Number(tahunStr);
+
+    if (bulan < 1 || bulan > 12 || isNaN(tahun)) {
+      res.status(400).json({
+        message: "Bulan atau tahun tidak valid",
+      });
       return;
     }
 
@@ -437,9 +465,8 @@ export const getOrderHistoryByMonth = async (
       return;
     }
 
-    const year = new Date().getFullYear();
-    const startDate = new Date(year, bulan - 1, 1);
-    const endDate = new Date(year, bulan, 0, 23, 59, 59);
+    const startDate = new Date(tahun, bulan - 1, 1);
+    const endDate = new Date(tahun, bulan, 0, 23, 59, 59);
 
     const orders = await prisma.transaksi.findMany({
       where: {
@@ -469,10 +496,11 @@ export const getOrderHistoryByMonth = async (
     });
 
     res.status(200).json({
-      message: `Histori pesanan bulan ${bulan}`,
+      message: `Histori pesanan bulan ${bulan}-${tahun}`,
       data: orders,
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json(error);
   }
 };
@@ -546,20 +574,33 @@ export const getMonthlyIncomeAndTopMenu = async (
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
-    const bulan = Number(req.params.bulan); // 1 - 12
-    const tahun = Number(req.query.tahun) || new Date().getFullYear();
+    const bulanTahun = req.params.bulanTahun;
 
     if (!userId) {
       res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
-    if (bulan < 1 || bulan > 12) {
-      res.status(400).json({ message: "Bulan tidak valid (1-12)" });
+    // Validasi format MM-YYYY
+    if (!/^\d{2}-\d{4}$/.test(bulanTahun)) {
+      res.status(400).json({
+        message: "Format tanggal tidak valid (MM-YYYY)",
+      });
       return;
     }
 
-    // 🔎 Cari stan dari user
+    const [bulanStr, tahunStr] = bulanTahun.split("-");
+    const bulan = Number(bulanStr); // 1 - 12
+    const tahun = Number(tahunStr);
+
+    if (bulan < 1 || bulan > 12 || isNaN(tahun)) {
+      res.status(400).json({
+        message: "Bulan atau tahun tidak valid",
+      });
+      return;
+    }
+
+    // Cari stan dari user
     const stan = await prisma.stan.findUnique({
       where: { userId },
     });
@@ -573,7 +614,7 @@ export const getMonthlyIncomeAndTopMenu = async (
     const endDate = new Date(tahun, bulan, 0, 23, 59, 59);
 
     // ===============================
-    // 💰 TOTAL PEMASUKAN
+    // TOTAL PEMASUKAN + MENU
     // ===============================
     const transaksi = await prisma.detailTransaksi.findMany({
       where: {
@@ -612,11 +653,10 @@ export const getMonthlyIncomeAndTopMenu = async (
     });
 
     // ===============================
-    // 🥇 MENU TERLARIS
+    // MENU TERLARIS
     // ===============================
-    const menuTerlaris = Object.values(menuCounter).sort(
-      (a, b) => b.qty - a.qty
-    )[0] || null;
+    const menuTerlaris =
+      Object.values(menuCounter).sort((a, b) => b.qty - a.qty)[0] || null;
 
     res.status(200).json({
       message: `Laporan pemasukan bulan ${bulan}-${tahun}`,
@@ -628,6 +668,7 @@ export const getMonthlyIncomeAndTopMenu = async (
       },
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json(error);
   }
 };

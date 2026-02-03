@@ -235,7 +235,9 @@ const authentication = async(req: Request, res: Response): Promise<void> => {
             logged: true,
             token: token,
             id: findUser?.id,
-            username: findUser?.username,}
+            username: findUser?.username,
+            role: findUser?.role
+          }
         })
     } catch (error) {
         res.status(500).json(error)

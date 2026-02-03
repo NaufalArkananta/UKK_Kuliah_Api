@@ -28,4 +28,6 @@ router.put(`/ubah_siswa/:id`, verifyToken, authorizeStan, uploadUserImage.single
 router.get("/get_siswa", verifyToken, authorizeStan, getAllSiswa);
 router.delete("/hapus_siswa/:id", verifyToken, authorizeStan, deleteSiswa);
 
+router.post(`/login`, loginValidation, authentication)
+
 export default router

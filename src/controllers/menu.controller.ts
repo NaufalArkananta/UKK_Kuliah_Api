@@ -1,13 +1,13 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
-import fs from "fs"
+import fs from "fs";
 import path from "path";
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
 const createMenu = async (
   req: Request & { user?: { id: number } },
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -33,7 +33,7 @@ const createMenu = async (
         harga: Number(harga),
         jenis,
         deskripsi,
-        foto: req.file!.filename, 
+        foto: req.file!.filename,
         stanId: stan.id,
       },
     });
@@ -47,10 +47,9 @@ const createMenu = async (
   }
 };
 
-
 const getMenuStan = async (
   req: Request & { user?: { id: number } },
-  res: Response
+  res: Response,
 ) => {
   try {
     const userId = req.user?.id;
@@ -76,7 +75,7 @@ const getMenuStan = async (
 
 const updateMenu = async (
   req: Request & { user?: { id: number } },
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -106,7 +105,7 @@ const updateMenu = async (
         process.cwd(),
         "public",
         "menuImage",
-        menu.foto
+        menu.foto,
       );
       if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
     }
@@ -134,7 +133,7 @@ const updateMenu = async (
 
 const deleteMenu = async (
   req: Request & { user?: { id: number } },
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -163,7 +162,7 @@ const deleteMenu = async (
         process.cwd(),
         "public",
         "menuImage",
-        menu.foto
+        menu.foto,
       );
       if (fs.existsSync(pathFile)) fs.unlinkSync(pathFile);
     }
@@ -177,11 +176,8 @@ const deleteMenu = async (
     res.status(500).json(error);
   }
 };
- 
-const getMenuDiskonAll = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+
+const getMenuDiskonAll = async (req: Request, res: Response): Promise<void> => {
   try {
     const data = await prisma.menu.findMany({
       where: {
@@ -213,10 +209,7 @@ const getMenuDiskonAll = async (
   }
 };
 
-const getMenuMakanan = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+const getMenuMakanan = async (req: Request, res: Response): Promise<void> => {
   try {
     const data = await prisma.menu.findMany({
       where: {
@@ -244,10 +237,7 @@ const getMenuMakanan = async (
   }
 };
 
-const getMenuMinuman = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+const getMenuMinuman = async (req: Request, res: Response): Promise<void> => {
   try {
     const data = await prisma.menu.findMany({
       where: {
@@ -280,7 +270,29 @@ const getMenuAll = async (
   res: Response
 ): Promise<void> => {
   try {
+    const q = req.query.q as string | undefined;
+    const now = new Date();
+
     const data = await prisma.menu.findMany({
+      where: q
+        ? {
+            OR: [
+              {
+                namaMakanan: {
+                  contains: q,
+                },
+              },
+              {
+                stan: {
+                  namaStan: {
+                    contains: q,
+                  },
+                },
+              },
+            ],
+          }
+        : undefined,
+
       include: {
         stan: {
           select: {
@@ -289,18 +301,226 @@ const getMenuAll = async (
           },
         },
         menuDiskon: {
-          include: { diskon: true },
+          where: {
+            diskon: {
+              tanggalAwal: {
+                lte: now,
+              },
+              tanggalAkhir: {
+                gte: now,
+              },
+            },
+          },
+          include: {
+            diskon: true,
+          },
+        },
+      },
+
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    res.status(200).json({
+      message: q
+        ? `Berhasil mencari menu dengan kata kunci "${q}"`
+        : "Berhasil mengambil semua menu",
+      data,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Terjadi kesalahan server",
+    });
+  }
+};
+
+const getMenuByStanId = async (
+  req: Request & { user?: { id: number } },
+  res: Response,
+): Promise<void> => {
+  try {
+    const userId = Number(req.params.id);
+
+    if (isNaN(userId)) {
+      res.status(400).json({
+        message: "ID user tidak valid",
+      });
+      return;
+    }
+
+    const stan = await prisma.stan.findUnique({
+      where: { userId },
+      include: {
+        menu: {
+          include: {
+            menuDiskon: {
+              include: {
+                diskon: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!stan) {
+      res.status(404).json({
+        message: "Stan tidak ditemukan",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      message: "Berhasil mengambil menu",
+      data: stan,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Terjadi kesalahan server",
+    });
+  }
+};
+
+const getAllStanWithMenus = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const q = req.query.q as string | undefined;
+
+    const stans = await prisma.stan.findMany({
+      where: q
+        ? {
+            OR: [
+              {
+                namaStan: {
+                  contains: q,
+                },
+              },
+              {
+                menu: {
+                  some: {
+                    namaMakanan: {
+                      contains: q,
+                    },
+                  },
+                },
+              },
+            ],
+          }
+        : undefined,
+      include: {
+        menu: {
+          where: q
+            ? {
+                namaMakanan: {
+                  contains: q,
+                },
+              }
+            : undefined,
+          include: {
+            menuDiskon: {
+              include: {
+                diskon: true,
+              },
+            },
+          },
         },
       },
     });
 
     res.status(200).json({
-      message: "Berhasil mengambil semua menu",
-      data,
+      success: true,
+      message: "Berhasil mengambil semua stan",
+      data: stans,
     });
   } catch (error) {
-    res.status(500).json(error);
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan server",
+    });
   }
 };
 
-export { createMenu, getMenuStan, updateMenu, deleteMenu, getMenuDiskonAll, getMenuMakanan, getMenuMinuman, getMenuAll };
+const searchMenu = async (req: Request, res: Response) => {
+  try {
+    const { q } = req.query;
+
+    if (!q) {
+      return res.status(400).json({
+        success: false,
+        message: "Query pencarian (q) wajib diisi",
+      });
+    }
+
+    const where = {
+      OR: [
+        {
+          namaMakanan: {
+            contains: String(q),
+          },
+        },
+        {
+          stan: {
+            namaStan: {
+              contains: String(q),
+            },
+          },
+        },
+      ],
+    };
+
+    const [data, total] = await Promise.all([
+      prisma.menu.findMany({
+        where,
+        orderBy: {
+          createdAt: "desc",
+        },
+        include: {
+          stan: {
+            select: {
+              id: true,
+              namaStan: true,
+            },
+          },
+          menuDiskon: {
+            include: {
+              diskon: true,
+            },
+          },
+        },
+      }),
+      prisma.menu.count({ where }),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      message: "Berhasil mencari menu",
+      data,
+    });
+  } catch (error) {
+    console.error("Search menu error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Gagal mencari menu",
+    });
+  }
+};
+
+export {
+  createMenu,
+  getMenuStan,
+  updateMenu,
+  deleteMenu,
+  getMenuDiskonAll,
+  getMenuMakanan,
+  getMenuMinuman,
+  getMenuAll,
+  getMenuByStanId,
+  getAllStanWithMenus,
+  searchMenu,
+};

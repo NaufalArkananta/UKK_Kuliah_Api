@@ -11,7 +11,7 @@ const router = Router()
 router.post("/pesan", verifyToken, createPesanValidation, createPesan);
 router.get("/showorder", verifyToken, getOrderByStatusSiswa);
 router.get("/showorder/:status", verifyToken, getOrderByStatusSiswa);
-router.get("/showorderbymonthbysiswa/:bulan", verifyToken, getOrderHistoryByMonthSiswa);
+router.get("/showorderbymonthbysiswa/:bulanTahun", verifyToken, getOrderHistoryByMonthSiswa);
 router.get("/cetaknota/:id", verifyToken, cetakNotaByOrderId);
 
 // STAN ROUTES
@@ -19,7 +19,7 @@ router.get("/cetaknota/:id", verifyToken, cetakNotaByOrderId);
 router.get("/getorder", verifyToken, authorizeStan, getOrderByStatusStan);
 router.get("/getorder/:status", verifyToken, authorizeStan, getOrderByStatusStan);
 router.put(`/updatestatus/:id`, verifyToken, authorizeStan, updateOrderStatusByStan);
-router.get(`/showpemasukanbybulan/:bulan`, verifyToken, authorizeStan, getMonthlyIncomeAndTopMenu);
-router.get("/showorderbymonth/:bulan", verifyToken, authorizeStan, getOrderHistoryByMonth);
+router.get(`/showpemasukanbybulan/:bulanTahun`, verifyToken, authorizeStan, getMonthlyIncomeAndTopMenu);
+router.get("/showorderbymonth/:bulanTahun", verifyToken, authorizeStan, getOrderHistoryByMonth);
 
 export default router;

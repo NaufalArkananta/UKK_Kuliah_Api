@@ -10,6 +10,9 @@ import {
   getMenuMakanan,
   getMenuAll,
   getMenuMinuman,
+  getMenuByStanId,
+  getAllStanWithMenus,
+  searchMenu,
 } from "../controllers/menu.controller";
 import { uploadMenuImage } from "../middlewares/menu.upload";
 import authorizeStan from "../middlewares/authorize.stan";
@@ -29,5 +32,8 @@ router.get("/getmenudiskonsiswa", getMenuDiskonAll);
 router.get("/getmenufood", getMenuMakanan);
 router.get("/getmenudrink", getMenuMinuman);
 router.get("/menu", getMenuAll);
+router.get("/stan/:id", getMenuByStanId);
+router.get("/stan", getAllStanWithMenus);
+router.get("/search", searchMenu);
 
 export default router;
