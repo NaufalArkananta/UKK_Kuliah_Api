@@ -86,6 +86,17 @@ export const getAllDiskon = async (
       where: {
         stanId: stan.id,
       },
+      include: {
+        menuDiskon: {
+          include: {
+            menu: {
+              include: {
+                stan: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: {
         createdAt: "desc",
       },
@@ -262,21 +273,21 @@ export const createMenuDiskon = async (
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
-    const { menuId, diskonId } = req.body;
+    const { menuIds, diskonId } = req.body;
 
     if (!userId) {
       res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
-    if (!menuId || !diskonId) {
+    if (!Array.isArray(menuIds) || menuIds.length === 0 || !diskonId) {
       res.status(400).json({
-        message: "menuId dan diskonId wajib diisi",
+        message: "menuIds (array) dan diskonId wajib diisi",
       });
       return;
     }
 
-    // 🔎 Ambil stan dari user JWT
+    // Ambil stan dari user JWT
     const stan = await prisma.stan.findUnique({
       where: { userId },
     });
@@ -288,22 +299,22 @@ export const createMenuDiskon = async (
       return;
     }
 
-    // 🔎 Ambil menu & pastikan milik stan ini
-    const menu = await prisma.menu.findFirst({
+    // Ambil semua menu milik stan
+    const menus = await prisma.menu.findMany({
       where: {
-        id: Number(menuId),
+        id: { in: menuIds.map(Number) },
         stanId: stan.id,
       },
     });
 
-    if (!menu) {
+    if (menus.length !== menuIds.length) {
       res.status(404).json({
-        message: "Menu tidak ditemukan atau bukan milik stan ini",
+        message: "Sebagian menu tidak ditemukan atau bukan milik stan ini",
       });
       return;
     }
 
-    //  Ambil diskon & pastikan milik stan ini
+    // Ambil diskon
     const diskon = await prisma.diskon.findFirst({
       where: {
         id: Number(diskonId),
@@ -318,32 +329,38 @@ export const createMenuDiskon = async (
       return;
     }
 
-    // Cegah duplikasi
-    const exists = await prisma.menuDiskon.findFirst({
+    // Cek duplikasi
+    const existing = await prisma.menuDiskon.findMany({
       where: {
-        menuId: menu.id,
         diskonId: diskon.id,
+        menuId: { in: menus.map((m) => m.id) },
       },
     });
 
-    if (exists) {
+    const existingMenuIds = new Set(existing.map((e) => e.menuId));
+
+    const dataToCreate = menus
+      .filter((m) => !existingMenuIds.has(m.id))
+      .map((m) => ({
+        menuId: m.id,
+        diskonId: diskon.id,
+      }));
+
+    if (dataToCreate.length === 0) {
       res.status(400).json({
-        message: "Diskon sudah diterapkan pada menu ini",
+        message: "Semua menu sudah memiliki diskon ini",
       });
       return;
     }
 
-    //  Create menu diskon
-    const menuDiskon = await prisma.menuDiskon.create({
-      data: {
-        menuId: menu.id,
-        diskonId: diskon.id,
-      },
+    // Create MANY sekaligus
+    const result = await prisma.menuDiskon.createMany({
+      data: dataToCreate,
     });
 
     res.status(201).json({
-      message: "Diskon berhasil ditambahkan ke menu",
-      data: menuDiskon,
+      message: "Diskon berhasil diterapkan ke beberapa menu",
+      total: result.count,
     });
   } catch (error) {
     console.error(error);

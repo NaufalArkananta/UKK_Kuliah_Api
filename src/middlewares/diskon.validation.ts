@@ -71,26 +71,12 @@ export const updateDiskonValidation = (
   next();
 };
 
-const createMenuDiskonSchema = Joi.object({
-  menuId: Joi.number()
-    .integer()
-    .positive()
-    .required()
-    .messages({
-      "number.base": "menuId harus berupa angka",
-      "number.positive": "menuId harus lebih dari 0",
-      "any.required": "menuId wajib diisi",
-    }),
-
-  diskonId: Joi.number()
-    .integer()
-    .positive()
-    .required()
-    .messages({
-      "number.base": "diskonId harus berupa angka",
-      "number.positive": "diskonId harus lebih dari 0",
-      "any.required": "diskonId wajib diisi",
-    }),
+export const createMenuDiskonSchema = Joi.object({
+  diskonId: Joi.number().required(),
+  menuIds: Joi.array()
+    .items(Joi.number().required())
+    .min(1)
+    .required(),
 });
 
 const updateMenuDiskonSchema = Joi.object({
